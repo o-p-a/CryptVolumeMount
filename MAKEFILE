@@ -1,0 +1,34 @@
+#
+# makefile for CryptVolumeMount, Borland MAKE
+#
+
+# -5      Pentium Instructions
+# -C      Allow nested comments
+# -Ox     Optimizations
+# -d      Merge duplicate strings
+# -Wx     Create Windows app
+# -RT     Generate RTTI
+
+CFLAGS = -5 -C -O1 -d -WU -RT-
+RM = del
+
+all: CryptVolumeMount.exe CryptVolumeUnmount.exe
+
+CryptVolumeMount.exe: CryptVolumeMount.cpp CryptVolumeMain.cpp
+	$(CC) $(CFLAGS) -W $*.cpp noeh32.lib
+#	brc32 $*.rc
+	upx -q -q --lzma --compress-icons=0 $*.exe
+
+CryptVolumeUnmount.exe: CryptVolumeUnmount.cpp CryptVolumeMain.cpp
+	$(CC) $(CFLAGS) -W $*.cpp noeh32.lib
+#	brc32 $*.rc
+	upx -q -q --lzma --compress-icons=0 $*.exe
+
+clean:
+	$(RM) CryptVolumeMount.obj
+	$(RM) CryptVolumeMount.tds
+	$(RM) CryptVolumeMount.exe
+	$(RM) CryptVolumeUnmount.obj
+	$(RM) CryptVolumeUnmount.tds
+	$(RM) CryptVolumeUnmount.exe
+
