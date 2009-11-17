@@ -14,21 +14,23 @@ RM = del
 
 all: CryptVolumeMount.exe CryptVolumeUnmount.exe
 
-CryptVolumeMount.exe: CryptVolumeMount.cpp CryptVolumeMain.cpp
+CryptVolumeMount.exe: CryptVolumeMount.cpp CryptVolumeMain.cpp CryptVolumeMount.rc CryptVolumeMount.ico
 	$(CC) $(CFLAGS) -W $*.cpp noeh32.lib
-#	brc32 $*.rc
+	brc32 $*.rc
 	upx -q -q --lzma --compress-icons=0 $*.exe
 
-CryptVolumeUnmount.exe: CryptVolumeUnmount.cpp CryptVolumeMain.cpp
+CryptVolumeUnmount.exe: CryptVolumeUnmount.cpp CryptVolumeMain.cpp CryptVolumeUnmount.rc CryptVolumeUnmount.ico
 	$(CC) $(CFLAGS) -W $*.cpp noeh32.lib
-#	brc32 $*.rc
+	brc32 $*.rc
 	upx -q -q --lzma --compress-icons=0 $*.exe
 
 clean:
 	$(RM) CryptVolumeMount.obj
 	$(RM) CryptVolumeMount.tds
+	$(RM) CryptVolumeMount.res
 	$(RM) CryptVolumeMount.exe
 	$(RM) CryptVolumeUnmount.obj
 	$(RM) CryptVolumeUnmount.tds
+	$(RM) CryptVolumeUnmount.res
 	$(RM) CryptVolumeUnmount.exe
 

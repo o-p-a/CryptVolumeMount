@@ -14,7 +14,7 @@
 #define PGM_INFO			PGM ": "
 #define PGM_WARN			PGM " warning: "
 #define PGM_ERR				PGM " error: "
-#define VERSTR				"1.00"
+#define VERSTR				"1.01"
 
 #define CREDIT2009			"Copyright (c) 2009 by opa"
 
@@ -279,9 +279,9 @@ void CryptVolume_main()
 #ifdef CRYPTVOLUME_MOUNT
 
 //	CryptVolumeMount.bat:
-//	start "TrueCrypt" "%~d0\bin\TrueCrypt.exe" /volume "%~d0\#CryptVolume@opa.tcdata" /mountoption removable /auto /cache yes /quit background
+//	start "TrueCrypt" "%~d0\bin\TrueCrypt.exe" /volume "%~d0\#CryptVolume@opa.tcdata" /auto /cache yes /quit background
 
-	cmdline = "\"" + exedir + "bin\\TrueCrypt.exe\" /volume \"" + exedir + "#CryptVolume@opa.tcdata\" /mountoption removable /auto /cache yes /quit background";
+	cmdline = "\"" + exedir + "bin\\TrueCrypt.exe\" /volume \"" + exedir + "#CryptVolume@opa.tcdata\" /auto /cache yes /quit background";
 	execute_command(cmdline);
 
 #endif
