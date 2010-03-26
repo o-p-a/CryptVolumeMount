@@ -6,6 +6,7 @@
 
 #include <string>
 #include <algorithm>
+#include <dir>
 
 #include <windows.h>
 
@@ -14,7 +15,7 @@
 #define PGM_INFO			PGM ": "
 #define PGM_WARN			PGM " warning: "
 #define PGM_ERR				PGM " error: "
-#define VERSTR				"1.01"
+#define VERSTR				"1.02"
 
 #define CREDIT2009			"Copyright (c) 2009 by opa"
 
@@ -34,6 +35,9 @@ bool
 sint
 	rcode = 0;
 
+DWORD
+	exitCodeProcess = 0;
+
 ////////////////////////////////////////////////////////////////////////
 
 template <class BidirectionalIterator, class Predicate>
@@ -51,6 +55,26 @@ BidirectionalIterator rfind_if(BidirectionalIterator first, BidirectionalIterato
 inline bool isbackslash(wchar_t c)
 {
 	return c == L'\\' || c == L'/';
+}
+
+bool file_is_exist(const wchar_t *filename)
+{
+#if 1
+	_wffblk ff;
+	sint r;
+
+	r = _wfindfirst(filename, &ff, FA_NORMAL + FA_HIDDEN + FA_SYSTEM);
+	_wfindclose(&ff);
+
+	return r == 0;
+#else
+	return _waccess(filename, 0) == 0;
+#endif
+}
+
+inline bool file_is_exist(const wstring &filename)
+{
+	return file_is_exist(filename.c_str());
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -157,6 +181,14 @@ bool String::isbackslash() const
 	return size() > 0 && ::isbackslash(*(end()-1));
 }
 
+String String::drivename() const
+{
+	if(size() >= 2 && iswalpha((*this)[0]) && (*this)[1] == L':')
+		return Self(begin(), begin() + 2);
+
+	return Self();
+}
+
 String String::dirname() const
 {
 	const_iterator
@@ -167,7 +199,6 @@ String String::dirname() const
 
 	return Self(begin(), e);
 }
-
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -220,7 +251,7 @@ String get_command_name(const String &cmd)
 	return cmd.doublequote_del();
 }
 
-bool CreateDaemonProcess(const String &cmd)
+bool CreateDaemonProcess(const String &cmd, bool wait=false)
 {
 	STARTUPINFO
 		si;
@@ -235,6 +266,8 @@ bool CreateDaemonProcess(const String &cmd)
 	bool
 		r;
 
+	exitCodeProcess = 0;
+
 	memset(&si, 0, sizeof si);
 	si.cb = sizeof si;
 	memset(&pi, 0, sizeof pi);
@@ -248,22 +281,31 @@ bool CreateDaemonProcess(const String &cmd)
 	CreationFlags |= CREATE_NEW_PROCESS_GROUP;
 	CreationFlags |= CREATE_NO_WINDOW;
 
-	si.wShowWindow = SW_SHOWMINIMIZED;
-	si.dwFlags |= STARTF_USESHOWWINDOW;
+//	si.wShowWindow = SW_SHOWMINIMIZED;
+//	si.dwFlags |= STARTF_USESHOWWINDOW;
 	si.dwFlags |= STARTF_FORCEOFFFEEDBACK;
 
 	r = ::CreateProcess(NULL, cmd_c_str, NULL, NULL, FALSE, CreationFlags, NULL, (wd.size()>0 ? wd.c_str() : NULL), &si, &pi);
 
 	delete [] cmd_c_str;
 
+	if(wait){
+		WaitForSingleObject(pi.hProcess, INFINITE);
+
+		GetExitCodeProcess(pi.hProcess, &exitCodeProcess);
+	}
+
+	CloseHandle(pi.hThread);
+	CloseHandle(pi.hProcess);
+
 	return r;
 }
 
-void execute_command(const String &cmdline)
+void execute_command(const String &cmdline, bool wait=false)
 {
 //	MessageBox(0, cmdline.c_str(), String(PGM).c_str(), 0);
 
-	if(CreateDaemonProcess(cmdline) == 0){
+	if(CreateDaemonProcess(cmdline, wait) == 0){
 		MessageBox(0, String("Command execute error").c_str(), String(PGM).c_str(), 0);
 		error = true;
 		rcode = 1;
@@ -273,15 +315,19 @@ void execute_command(const String &cmdline)
 void CryptVolume_main()
 {
 	String
-		exedir(WindowsAPI::GetModuleFileName().dirname()),
+		exename(WindowsAPI::GetModuleFileName()),
+		exedrive(exename.drivename()),
+		exedir(exename.dirname()),
+		cmd,
 		cmdline;
 
 #ifdef CRYPTVOLUME_MOUNT
 
 //	CryptVolumeMount.bat:
-//	start "TrueCrypt" "%~d0\bin\TrueCrypt.exe" /volume "%~d0\#CryptVolume@opa.tcdata" /auto /cache yes /quit background
+//	start "TrueCrypt" "%~d0\bin\TrueCrypt.exe" /volume "%~d0\#CryptVolume@opa.tcdata" /auto /cache no /quit background
 
-	cmdline = "\"" + exedir + "bin\\TrueCrypt.exe\" /volume \"" + exedir + "#CryptVolume@opa.tcdata\" /auto /cache yes /quit background";
+	cmd = exedir + "bin\\TrueCrypt.exe";
+	cmdline = "\"" + cmd + "\" /volume \"" + exedir + "#CryptVolume@opa.tcdata\" /auto /cache no /quit background";
 	execute_command(cmdline);
 
 #endif
@@ -289,14 +335,25 @@ void CryptVolume_main()
 #ifdef CRYPTVOLUME_UNMOUNT
 
 //	CryptVolumeUnmount.bat:
-//	start "TrueCrypt" "%~d0\bin\TrueCrypt.exe" /dismount /quit
+//	start /wait "TrueCrypt" "%~d0\bin\TrueCrypt.exe" /dismount /quit
 //	start "UnplugDrive" "%~d0\bin\UnplugDrive.exe"
 
-	cmdline = "\"" + exedir + "bin\\TrueCrypt.exe\" /dismount /quit";
-	execute_command(cmdline);
+	cmd = exedir + "bin\\TrueCrypt.exe";
+	cmdline = "\"" + cmd + "\" /dismount /quit";
+	execute_command(cmdline, true);
 
-	cmdline = "\"" + exedir + "bin\\UnplugDrive.exe\"";
-	execute_command(cmdline);
+	if(exitCodeProcess != 0)
+		return;
+
+	cmd = "D:\\usrlocal\\program\\UnplugDrive\\UnplugDrive.exe";
+	if(file_is_exist(cmd)){
+		cmdline = "\"" + cmd + "\" " + exedrive;
+		execute_command(cmdline);
+	}else{
+		cmd = exedir + "bin\\UnplugDrive.exe";
+		cmdline = "\"" + cmd + "\"";
+		execute_command(cmdline);
+	}
 
 #endif
 }
